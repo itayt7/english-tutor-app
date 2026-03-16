@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.api.users import router as users_router
+from app.api.chat import router as chat_router
 from app.database import get_db
 from app.models.user import User
 
@@ -30,6 +31,7 @@ app.add_middleware(
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(users_router, prefix="/api/v1")
+app.include_router(chat_router, prefix="/api/chat", tags=["Chat"])
 
 
 # ── Root & Health ─────────────────────────────────────────────────────────────
