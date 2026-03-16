@@ -1,15 +1,17 @@
-import { MessageSquare } from 'lucide-react';
+import React from 'react';
+import { ChatInterface } from '../components/chat/ChatInterface';
 
-export default function Conversation() {
+const Conversation: React.FC = () => {
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100">
-        <MessageSquare className="h-8 w-8 text-indigo-500" />
-      </span>
-      <h1 className="text-2xl font-bold text-gray-900">Conversation</h1>
-      <p className="max-w-sm text-sm text-gray-500">
-        AI-powered free-form conversation practice. Coming soon.
-      </p>
+    <div className="w-full max-w-5xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-slate-800">Conversation Mode</h1>
+      </div>
+      
+      {/* Render the chat interface */}
+      <ChatInterface />
     </div>
   );
-}
+};
+
+export default Conversation;
