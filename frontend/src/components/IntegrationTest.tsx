@@ -14,7 +14,7 @@ type TestState =
   | { phase: 'success'; data: TestConnectionResponse; latencyMs: number }
   | { phase: 'error'; message: string; statusCode?: number };
 
-const ENDPOINT = 'http://localhost:8000/api/test-connection';
+const ENDPOINT = '/api/test-connection';
 
 export default function IntegrationTest() {
   const [state, setState] = useState<TestState>({ phase: 'idle' });

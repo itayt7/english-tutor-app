@@ -1,42 +1,60 @@
-import httpx
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from pydantic import BaseModel
 from app.core.config import settings
+from app.ai.client import speech_client
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-class SpeechTokenResponse(BaseModel):
-    token: str
-    region: str
 
-@router.get("/token", response_model=SpeechTokenResponse)
-async def get_speech_token():
-    """
-    Vends a short-lived authorization token for the Azure Speech SDK.
-    This prevents exposing our primary Azure Speech Key to the frontend client.
-    """
-    fetch_token_url = f"https://{settings.AZURE_SPEECH_REGION}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
-    headers = {
-        "Ocp-Apim-Subscription-Key": settings.AZURE_SPEECH_KEY
-    }
+class SynthesizeRequest(BaseModel):
+    text: str
 
+
+@router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """
+    Accepts an uploaded audio file and returns the transcription
+    using the Azure OpenAI gpt-4o-transcribe deployment.
+    """
     try:
-        # Use an async HTTP client to avoid blocking the server
-        async with httpx.AsyncClient() as client:
-            response = await client.post(fetch_token_url, headers=headers)
-            
-        if response.status_code != 200:
-            logger.error(f"Failed to fetch Azure Speech token. Status: {response.status_code}, Body: {response.text}")
-            raise HTTPException(status_code=502, detail="Failed to fetch speech token from Azure.")
-            
-        # The token is returned as plain text in the response body
-        return SpeechTokenResponse(
-            token=response.text,
-            region=settings.AZURE_SPEECH_REGION
+        audio_bytes = await file.read()
+
+        transcription = await speech_client.audio.transcriptions.create(
+            model=settings.AZURE_OPENAI_STT_DEPLOYMENT_NAME,
+            file=(file.filename or "audio.webm", audio_bytes),
         )
 
-    except httpx.RequestError as e:
-        logger.error(f"HTTP request failed during speech token fetch: {e}")
-        raise HTTPException(status_code=503, detail="Service unavailable when contacting Azure Speech.")
+        return {"text": transcription.text}
+
+    except Exception as e:
+        logger.error(f"Transcription failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+
+
+@router.post("/synthesize")
+async def synthesize_speech(body: SynthesizeRequest):
+    """
+    Accepts a JSON payload with text and returns audio/mpeg bytes
+    using the Azure OpenAI TTS deployment.
+    """
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="Text must not be empty.")
+
+    try:
+        response = await speech_client.audio.speech.create(
+            model=settings.AZURE_OPENAI_TTS_DEPLOYMENT_NAME,
+            voice="alloy",
+            input=body.text,
+        )
+
+        # response is HttpxBinaryResponseContent – read the full audio payload
+        audio_bytes = response.content
+
+        return Response(content=audio_bytes, media_type="audio/mpeg")
+
+    except Exception as e:
+        logger.error(f"Speech synthesis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Speech synthesis failed: {e}")

@@ -48,12 +48,19 @@ export default function Dashboard() {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch('http://localhost:8000/api/v1/users/me', { signal: controller.signal })
+    // Fetch the first available user via the list endpoint,
+    // using a relative URL so the Vite dev proxy handles it.
+    fetch('/api/v1/users/?limit=1', { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<UserProfile>;
+        return res.json() as Promise<UserProfile[]>;
       })
-      .then(setProfile)
+      .then((users) => {
+        if (users.length === 0) {
+          throw new Error('No user profile found. Please seed the database.');
+        }
+        setProfile(users[0]);
+      })
       .catch((err) => {
         if (err.name !== 'AbortError') {
           setError(err.message ?? 'Could not load profile.');
