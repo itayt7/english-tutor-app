@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
     AZURE_OPENAI_DEPLOYMENT_NAME: str
 
+    # Azure Speech Services
+    AZURE_SPEECH_KEY: str
+    AZURE_SPEECH_REGION: str
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
