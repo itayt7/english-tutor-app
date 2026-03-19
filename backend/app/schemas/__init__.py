@@ -10,3 +10,4 @@ from .news import (
     NewsArticleResponse,
     NewsResponse,
 )
+from .translation import TranslationEvaluation
