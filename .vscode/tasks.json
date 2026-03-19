@@ -1,0 +1,60 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // ── Backend ────────────────────────────────────────────────────────────────
+    {
+      "label": "Backend: Start",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/backend && source venv/bin/activate && alembic upgrade head && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "servers"
+      }
+    },
+    // ── Frontend ───────────────────────────────────────────────────────────────
+    {
+      "label": "Frontend: Start",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/frontend && npm run dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "servers"
+      }
+    },
+    // ── Both (compound) ────────────────────────────────────────────────────────
+    {
+      "label": "🚀 Start App (Backend + Frontend)",
+      "dependsOn": ["Backend: Start", "Frontend: Start"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    // ── Stop ───────────────────────────────────────────────────────────────────
+    {
+      "label": "🛑 Stop App (kill ports 8000 & 5173)",
+      "type": "shell",
+      "command": "lsof -ti:8000 | xargs kill -9 2>/dev/null; lsof -ti:5173 | xargs kill -9 2>/dev/null; echo '✅ Ports 8000 and 5173 cleared'",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    // ── Backend tests ──────────────────────────────────────────────────────────
+    {
+      "label": "Backend: Run Tests",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/backend && source venv/bin/activate && python -m pytest tests/ -v",
+      "problemMatcher": []
+    }
+  ]
+}
