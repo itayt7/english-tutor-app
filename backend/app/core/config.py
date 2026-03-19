@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     AZURE_OPENAI_STT_DEPLOYMENT_NAME: str = "gpt-4o-transcribe"
     AZURE_OPENAI_TTS_DEPLOYMENT_NAME: str = "gpt-4o-mini-tts"
 
+    # NewsAPI.org (Translation Practice – news fetching)
+    # Free tier: 100 req/day.  Leave blank to use built-in fallback articles.
+    # Get a key at https://newsapi.org/register
+    NEWS_API_KEY: str = ""
+
     @property
     def speech_api_key(self) -> str:
         return self.AZURE_OPENAI_SPEECH_API_KEY or self.AZURE_OPENAI_API_KEY
