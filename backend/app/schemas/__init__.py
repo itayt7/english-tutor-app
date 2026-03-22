@@ -21,3 +21,13 @@ from .presentation import (
     PitchEvaluation,
     EvaluatePitchRequest,
 )
+from .dashboard import (
+    VocabularyItemRead,
+    MistakePatternRead,
+    MistakePatternAggregate,
+    ActionableInsight,
+    DashboardStats,
+    InsightsMistakeItem,
+    InsightsVocabularyItem,
+    InsightsGeneratorResult,
+)

@@ -9,6 +9,8 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.session import Session
+    from app.models.vocabulary import VocabularyItem
+    from app.models.mistake import MistakePattern
 
 
 class User(Base):
@@ -20,4 +22,10 @@ class User(Base):
 
     sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
         "Session", back_populates="user", cascade="all, delete-orphan"
+    )
+    vocabulary_items: Mapped[list["VocabularyItem"]] = relationship(  # noqa: F821
+        "VocabularyItem", back_populates="user", cascade="all, delete-orphan"
+    )
+    mistake_patterns: Mapped[list["MistakePattern"]] = relationship(  # noqa: F821
+        "MistakePattern", back_populates="user", cascade="all, delete-orphan"
     )

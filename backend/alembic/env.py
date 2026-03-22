@@ -18,8 +18,10 @@ from app.database import Base  # noqa: E402
 
 # Import every model module here so their tables are registered on Base.metadata
 # before autogenerate runs.
-import app.models.user     # noqa: E402, F401
-import app.models.session  # noqa: E402, F401
+import app.models.user         # noqa: E402, F401
+import app.models.session      # noqa: E402, F401
+import app.models.vocabulary   # noqa: E402, F401
+import app.models.mistake      # noqa: E402, F401
 
 # ---------------------------------------------------------------------------
 # Alembic Config object

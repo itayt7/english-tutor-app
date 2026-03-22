@@ -7,6 +7,7 @@ import {
   RotateCcw,
   X,
   ArrowLeftRight,
+  ArrowLeft,
   Pause,
   Play,
 } from "lucide-react";
@@ -263,7 +264,19 @@ const TranslationView: React.FC = () => {
     <div className="space-y-4">
       {/* Title bar */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Translation Practice</h1>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={reset}
+            className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400
+                       hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Back to topic selection"
+            title="Back to topic selection"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">Translation Practice</h1>
+        </div>
         <div className="flex items-center gap-3">
           {/* Progress bar */}
           <div className="hidden sm:flex items-center gap-2">
@@ -286,14 +299,6 @@ const TranslationView: React.FC = () => {
           >
             <Pause className="h-3 w-3" />
             Pause &amp; Save
-          </button>
-          <button
-            type="button"
-            onClick={reset}
-            className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors"
-            aria-label="Start over with a new topic"
-          >
-            Change topic
           </button>
         </div>
       </div>
