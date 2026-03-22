@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # Get a key at https://newsapi.org/register
     NEWS_API_KEY: str = ""
 
+    # Azure OpenAI – Embeddings (RAG pipeline)
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME: str = "text-embedding-3-small"
+
+    # ChromaDB – local persistent storage path
+    CHROMA_DB_PATH: str = "./data/chroma_db"
+
     @property
     def speech_api_key(self) -> str:
         return self.AZURE_OPENAI_SPEECH_API_KEY or self.AZURE_OPENAI_API_KEY
