@@ -18,4 +18,6 @@ from .presentation import (
     SimilaritySearchRequest,
     SearchHit,
     SimilaritySearchResponse,
+    PitchEvaluation,
+    EvaluatePitchRequest,
 )

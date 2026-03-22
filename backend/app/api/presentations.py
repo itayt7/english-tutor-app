@@ -14,12 +14,15 @@ from app.schemas.presentation import (
     SimilaritySearchRequest,
     SimilaritySearchResponse,
     SearchHit,
+    PitchEvaluation,
+    EvaluatePitchRequest,
 )
 from app.services.document_parser import (
     parse_document,
     SUPPORTED_EXTENSIONS,
 )
 from app.ai.rag.chroma_client import PresentationRAG
+from app.ai.agents.presentation_coach import evaluate_pitch
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -215,3 +218,61 @@ async def search_presentations(body: SimilaritySearchRequest):
         query=body.query,
         results=[SearchHit(**hit) for hit in hits],
     )
+
+
+# ── Evaluate Pitch endpoint ──────────────────────────────────────────────────
+
+
+@router.post(
+    "/evaluate-pitch",
+    response_model=PitchEvaluation,
+    summary="Evaluate a spoken pitch against ingested slide content",
+    responses={
+        502: {"description": "LLM or embedding API unavailable"},
+    },
+)
+async def evaluate_pitch_endpoint(body: EvaluatePitchRequest):
+    """
+    Accepts the user's spoken pitch transcript, retrieves the most relevant
+    slide context via RAG, and sends both to the Presentation Coach LLM agent
+    for structured evaluation.
+
+    Workflow:
+      1. Query ChromaDB with the transcript to retrieve relevant slide chunks.
+      2. Concatenate the top-k chunks into a single RAG context string.
+      3. Pass RAG context + transcript to the Presentation Coach agent.
+      4. Return structured JSON feedback (accuracy, grammar, coaching, phrasing).
+    """
+    # ── 1. Retrieve relevant slide context via RAG ────────────────────────
+    try:
+        rag = get_rag()
+        hits = await rag.similarity_search(
+            query=body.user_transcript,
+            top_k=body.top_k,
+            filename_filter=body.filename,
+        )
+    except RuntimeError as exc:
+        logger.error(f"RAG search failed during pitch evaluation: {exc}")
+        raise HTTPException(
+            status_code=502,
+            detail="Embedding generation failed. Please try again later.",
+        )
+    except Exception as exc:
+        logger.error(f"Unexpected RAG error during pitch evaluation: {exc}")
+        raise HTTPException(status_code=500, detail="RAG search failed.")
+
+    # ── 2. Build the RAG context string ───────────────────────────────────
+    if hits:
+        rag_context = "\n\n".join(
+            f"[Slide {hit['page_number']}]\n{hit['text']}" for hit in hits
+        )
+    else:
+        rag_context = "(No relevant slide content found.)"
+
+    # ── 3. Evaluate via the Presentation Coach agent ──────────────────────
+    result = await evaluate_pitch(
+        rag_context=rag_context,
+        user_transcript=body.user_transcript,
+    )
+
+    return result
