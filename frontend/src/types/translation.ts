@@ -1,6 +1,7 @@
 /* ── News / Article types (mirrors backend schemas/news.py) ─────────────── */
 
 export type DifficultyLevel = "easy" | "medium" | "hard";
+export type ArticleLanguage = "en" | "he";
 
 export interface SentenceTask {
   id: number;
@@ -11,13 +12,15 @@ export interface NewsArticle {
   title: string;
   source: string | null;
   url: string | null;
+  published_at: string | null;
+  full_article_text: string | null;
   sentences: SentenceTask[];
 }
 
 export interface NewsResponse {
   topic: string;
   difficulty: DifficultyLevel;
-  language: string;
+  language: ArticleLanguage;
   articles: NewsArticle[];
   total_sentences: number;
 }

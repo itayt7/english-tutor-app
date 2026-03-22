@@ -60,6 +60,14 @@ class NewsArticleResponse(BaseModel):
     title: str
     source: Optional[str] = None
     url: Optional[str] = None
+    published_at: Optional[str] = Field(
+        default=None,
+        description="ISO 8601 publication date/time of the article.",
+    )
+    full_article_text: Optional[str] = Field(
+        default=None,
+        description="The full readable article body (cleaned / translated).",
+    )
     sentences: List[SentenceTask] = Field(
         default_factory=list,
         description="Ordered list of translatable sentences.",

@@ -3,6 +3,7 @@ import type {
   NewsArticle,
   SentenceTask,
   DifficultyLevel,
+  ArticleLanguage,
   CompletedSentence,
   TranslationEvaluation,
 } from "../types/translation";
@@ -10,6 +11,51 @@ import {
   fetchNewsArticles,
   evaluateTranslation,
 } from "../services/translationService";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  localStorage persistence helpers
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+const STORAGE_KEY = "translation-practice-progress";
+
+interface SavedProgress {
+  article: NewsArticle;
+  completedSentences: CompletedSentence[];
+  currentSentenceIndex: number;
+  language: ArticleLanguage;
+  difficulty: DifficultyLevel;
+  topic: string;
+  savedAt: number; // epoch ms
+}
+
+function saveProgress(data: SavedProgress): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    /* quota exceeded – silently ignore */
+  }
+}
+
+function loadProgress(): SavedProgress | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: SavedProgress = JSON.parse(raw);
+    // Expire after 24 hours
+    if (Date.now() - parsed.savedAt > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
+function clearSavedProgress(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
  *  Public return type
@@ -21,6 +67,8 @@ export interface UseTranslationPracticeReturn {
   setTopic: (value: string) => void;
   difficulty: DifficultyLevel;
   setDifficulty: (value: DifficultyLevel) => void;
+  language: ArticleLanguage;
+  toggleLanguage: () => void;
 
   /* ── Loading / errors ───────────────────────────────────────────────── */
   isFetchingNews: boolean;
@@ -44,6 +92,15 @@ export interface UseTranslationPracticeReturn {
   totalSentences: number;
   progress: number; // 0-100
 
+  /* ── Pause / resume ─────────────────────────────────────────────────── */
+  hasSavedProgress: boolean;
+  /** Pause the session and persist progress to localStorage */
+  pauseAndSave: () => void;
+  /** Resume a previously saved session from localStorage */
+  resumeProgress: () => void;
+  /** Discard the saved session without resuming */
+  discardSavedProgress: () => void;
+
   /* ── Actions ────────────────────────────────────────────────────────── */
   /** Fetch news articles for the current topic + difficulty */
   startPractice: () => Promise<void>;
@@ -61,6 +118,7 @@ export function useTranslationPractice(): UseTranslationPracticeReturn {
   /* ── Topic / search state ───────────────────────────────────────────── */
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<DifficultyLevel>("medium");
+  const [language, setLanguage] = useState<ArticleLanguage>("he");
 
   /* ── Loading / error state ──────────────────────────────────────────── */
   const [isFetchingNews, setIsFetchingNews] = useState(false);
@@ -115,6 +173,53 @@ export function useTranslationPractice(): UseTranslationPracticeReturn {
     setEvaluationError(null);
   }, []);
 
+  const toggleLanguage = useCallback(() => {
+    setLanguage((prev) => (prev === "he" ? "en" : "he"));
+  }, []);
+
+  /* ── Saved-progress detection ───────────────────────────────────────── */
+  const [hasSavedProgress, setHasSavedProgress] = useState(
+    () => loadProgress() !== null,
+  );
+
+  const pauseAndSave = useCallback(() => {
+    if (!article) return;
+    saveProgress({
+      article,
+      completedSentences,
+      currentSentenceIndex,
+      language,
+      difficulty,
+      topic,
+      savedAt: Date.now(),
+    });
+    // Reset UI to search screen
+    setArticle(null);
+    setCurrentSentenceIndex(0);
+    setCompletedSentences([]);
+    setFetchError(null);
+    setEvaluationError(null);
+    setHasSavedProgress(true);
+  }, [article, completedSentences, currentSentenceIndex, language, difficulty, topic]);
+
+  const resumeProgress = useCallback(() => {
+    const saved = loadProgress();
+    if (!saved) return;
+    setArticle(saved.article);
+    setCompletedSentences(saved.completedSentences);
+    setCurrentSentenceIndex(saved.currentSentenceIndex);
+    setLanguage(saved.language);
+    setDifficulty(saved.difficulty);
+    setTopic(saved.topic);
+    clearSavedProgress();
+    setHasSavedProgress(false);
+  }, []);
+
+  const discardSavedProgress = useCallback(() => {
+    clearSavedProgress();
+    setHasSavedProgress(false);
+  }, []);
+
   /* ── startPractice: fetch news articles ─────────────────────────────── */
   const startPractice = useCallback(async () => {
     const trimmed = topic.trim();
@@ -133,7 +238,7 @@ export function useTranslationPractice(): UseTranslationPracticeReturn {
     setEvaluationError(null);
 
     try {
-      const data = await fetchNewsArticles(trimmed, difficulty, 1);
+      const data = await fetchNewsArticles(trimmed, difficulty, 1, language);
 
       // Bail if this request was superseded
       if (controller.signal.aborted) return;
@@ -156,7 +261,7 @@ export function useTranslationPractice(): UseTranslationPracticeReturn {
         setIsFetchingNews(false);
       }
     }
-  }, [topic, difficulty, isFetchingNews]);
+  }, [topic, difficulty, language, isFetchingNews]);
 
   /* ── submitTranslation: evaluate user input ─────────────────────────── */
   const submitTranslation = useCallback(
@@ -203,6 +308,8 @@ export function useTranslationPractice(): UseTranslationPracticeReturn {
     setCompletedSentences([]);
     setFetchError(null);
     setEvaluationError(null);
+    clearSavedProgress();
+    setHasSavedProgress(false);
   }, []);
 
   /* ── Return ─────────────────────────────────────────────────────────── */
@@ -212,6 +319,8 @@ export function useTranslationPractice(): UseTranslationPracticeReturn {
     setTopic,
     difficulty,
     setDifficulty,
+    language,
+    toggleLanguage,
 
     // Loading / errors
     isFetchingNews,
@@ -233,6 +342,12 @@ export function useTranslationPractice(): UseTranslationPracticeReturn {
     averageScore,
     totalSentences,
     progress,
+
+    // Pause / resume
+    hasSavedProgress,
+    pauseAndSave,
+    resumeProgress,
+    discardSavedProgress,
 
     // Actions
     startPractice,

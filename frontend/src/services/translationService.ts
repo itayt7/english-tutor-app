@@ -1,6 +1,7 @@
 import type {
   NewsResponse,
   DifficultyLevel,
+  ArticleLanguage,
   TranslationEvaluation,
 } from "../types/translation";
 
@@ -12,11 +13,13 @@ export async function fetchNewsArticles(
   topic: string,
   difficulty: DifficultyLevel = "medium",
   maxArticles: number = 3,
+  language: ArticleLanguage = "he",
 ): Promise<NewsResponse> {
   const params = new URLSearchParams({
     topic,
     difficulty,
     max_articles: String(maxArticles),
+    language,
   });
 
   const res = await fetch(`${API_BASE}/news?${params}`);

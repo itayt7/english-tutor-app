@@ -7,6 +7,10 @@ articles for a given topic.  Falls back gracefully when:
   • the API returns empty   → returns an empty list
   • the API times out       → raises a clear HTTPException
 
+When the user selects Hebrew→English mode, articles are always fetched
+in English and then translated to Hebrew by the LLM article-translator
+agent.  This avoids low-quality Hebrew news sources.
+
 The fetched results are cleaned and split into translatable sentences
 by the ``text_processing`` module.
 """
@@ -28,6 +32,7 @@ from app.schemas.news import (
     SentenceTask,
 )
 from app.services.text_processing import text_to_sentence_tasks
+from app.ai.agents.article_translator import translate_article_to_hebrew
 
 logger = logging.getLogger(__name__)
 
@@ -111,49 +116,8 @@ _FALLBACK_ARTICLES_EN: list[dict] = [
     },
 ]
 
-_FALLBACK_ARTICLES_HE: list[dict] = [
-    {
-        "title": "פסגת האקלים העולמית הגיעה להסכם חדש",
-        "source": "תוכן לדוגמה",
-        "url": None,
-        "body": (
-            "מנהיגי העולם התכנסו השבוע בז'נבה לפסגת האקלים השנתית. "
-            "לאחר חמישה ימים של משא ומתן אינטנסיבי, נציגים מלמעלה מ-190 מדינות "
-            "הגיעו להסכם היסטורי לצמצום פליטת פחמן ב-45 אחוז עד שנת 2035. "
-            "ההסכם כולל מנגנוני מימון חדשים עבור מדינות מתפתחות. "
-            "ארגוני סביבה שיבחו את העסקה אך הזהירו כי היישום יהיה המבחן האמיתי של המחויבות. "
-            "נציגי ארה\"ב הדגישו את החשיבות של העברת טכנולוגיה בין מדינות."
-        ),
-    },
-    {
-        "title": "התקדמות בבינה מלאכותית משנה את עולם הרפואה",
-        "source": "תוכן לדוגמה",
-        "url": None,
-        "body": (
-            "בתי חולים ברחבי העולם מאמצים כלי בינה מלאכותית לשיפור תוצאות המטופלים. "
-            "מחקר חדש שפורסם בכתב העת למחקר רפואי מראה כי אבחון בסיוע בינה מלאכותית "
-            "הפחית את שיעור האבחונים השגויים ב-30 אחוז במחלקות חירום. "
-            "הטכנולוגיה מנתחת תמונות רפואיות ורשומות מטופלים מהר יותר מרופאים אנושיים. "
-            "מבקרים טוענים כי הסתמכות יתרה על בינה מלאכותית עלולה לפגוע במיומנויות קליניות חיוניות."
-        ),
-    },
-    {
-        "title": "עתיד העבודה מרחוק",
-        "source": "תוכן לדוגמה",
-        "url": None,
-        "body": (
-            "שלוש שנים אחרי שהמגפה שינתה את תרבות המשרד, עבודה מרחוק נותרה נושא שנוי במחלוקת. "
-            "סקר של מקינזי מצא כי 58 אחוז מהעובדים האמריקאים יכולים לעבוד מהבית לפחות יום אחד בשבוע. "
-            "נתוני פרודוקטיביות מצביעים על כך שמודלים היברידיים עולים על עבודה מרחוק מלאה ועל עבודה מהמשרד בלבד. "
-            "עם זאת, עובדים צעירים מדווחים על תחושת בידוד ועל החמצת הזדמנויות חונכות. "
-            "חברות כמו גוגל ומיקרוסופט מנסות עיצובי משרדים חדשים לעידוד שיתוף פעולה."
-        ),
-    },
-]
-
 _FALLBACK_ARTICLES: dict[str, list[dict]] = {
     "en": _FALLBACK_ARTICLES_EN,
-    "he": _FALLBACK_ARTICLES_HE,
 }
 
 
@@ -169,12 +133,15 @@ async def _fetch_from_newsapi(
     Query NewsAPI.org ``/v2/everything`` and return a list of raw article dicts:
       [{"title": ..., "source": ..., "url": ..., "body": ...}, ...]
 
+    ALWAYS fetches English articles regardless of the *language* parameter.
+    When *language* is ``he``, the caller is responsible for sending the body
+    through the LLM article-translator.
+
     Uses ``description`` + ``content`` fields to build the translatable body.
     Raises ``httpx.HTTPStatusError`` on non-2xx responses so the caller
     can surface an appropriate error.
     """
-    lang_code = language.value
-    fallback = _FALLBACK_ARTICLES.get(lang_code, _FALLBACK_ARTICLES_EN)
+    fallback = _FALLBACK_ARTICLES.get("en", _FALLBACK_ARTICLES_EN)
 
     api_key = settings.NEWS_API_KEY
     if not api_key:
@@ -183,18 +150,15 @@ async def _fetch_from_newsapi(
 
     config = _DIFFICULTY_CONFIG.get(difficulty, _DIFFICULTY_CONFIG[DifficultyLevel.MEDIUM])
 
+    # Always fetch English articles — Hebrew sources return garbage content.
     params: dict = {
         "q": topic.strip(),
-        "language": lang_code,
+        "language": "en",
         "sortBy": config["sortBy"],
         "pageSize": max_results,
         "apiKey": api_key,
+        "domains": config["domains"],
     }
-
-    # Domain filtering only applies to English tech sources.
-    # For Hebrew (and other languages) we let NewsAPI pick any source.
-    if lang_code == "en":
-        params["domains"] = config["domains"]
 
     async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT, verify=False) as client:
         resp = await client.get(_NEWSAPI_EVERYTHING_URL, params=params)
@@ -245,6 +209,7 @@ async def _fetch_from_newsapi(
             "title": item.get("title") or "Untitled",
             "source": source_name,
             "url": item.get("url"),
+            "published_at": item.get("publishedAt"),
             "body": body,
         })
 
@@ -266,9 +231,11 @@ async def fetch_news_for_translation(
 ) -> NewsResponse:
     """
     End-to-end pipeline:
-      1. Fetch raw articles (NewsAPI.org or fallback).
-      2. Clean + sentence-split each article.
-      3. Return a ``NewsResponse`` ready for the frontend.
+      1. Fetch raw articles in English (always — even for Hebrew mode).
+      2. If language is Hebrew, translate each article body via LLM.
+      3. Clean + sentence-split each article.
+      4. Return a ``NewsResponse`` ready for the frontend, including the
+         full readable article text.
 
     Raises ``httpx.TimeoutException`` and ``httpx.HTTPStatusError``
     which the router layer converts into user-friendly HTTP errors.
@@ -279,15 +246,32 @@ async def fetch_news_for_translation(
     total_sentences = 0
 
     for raw in raw_articles:
-        sentence_tasks: list[SentenceTask] = text_to_sentence_tasks(raw["body"])
+        body = raw["body"]
+        title = raw["title"]
+
+        # ── Hebrew mode: translate the English article to Hebrew via LLM ──
+        if language == ArticleLanguage.HE:
+            translated = await translate_article_to_hebrew(title, body)
+            if translated:
+                body = translated
+            else:
+                # Translation failed — skip this article rather than
+                # showing English text in a Hebrew exercise.
+                logger.warning("LLM translation failed for '%s' — skipping", title)
+                continue
+
+        # ── Sentence splitting ────────────────────────────────────────────
+        sentence_tasks: list[SentenceTask] = text_to_sentence_tasks(body)
         if not sentence_tasks:
             continue  # skip articles that produced no usable sentences
 
         articles.append(
             NewsArticleResponse(
-                title=raw["title"],
+                title=title,
                 source=raw.get("source"),
                 url=raw.get("url"),
+                published_at=raw.get("published_at"),
+                full_article_text=body,
                 sentences=sentence_tasks,
             )
         )

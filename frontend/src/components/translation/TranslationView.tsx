@@ -6,6 +6,9 @@ import {
   Trophy,
   RotateCcw,
   X,
+  ArrowLeftRight,
+  Pause,
+  Play,
 } from "lucide-react";
 import type { DifficultyLevel } from "../../types/translation";
 import { useTranslationPractice } from "../../hooks/useTranslationPractice";
@@ -52,6 +55,8 @@ const TranslationView: React.FC = () => {
     setTopic,
     difficulty,
     setDifficulty,
+    language,
+    toggleLanguage,
     isFetchingNews,
     isEvaluating,
     fetchError,
@@ -66,10 +71,16 @@ const TranslationView: React.FC = () => {
     isFinished,
     averageScore,
     progress,
+    hasSavedProgress,
+    pauseAndSave,
+    resumeProgress,
+    discardSavedProgress,
     startPractice,
     submitTranslation,
     reset,
   } = useTranslationPractice();
+
+  const isHebrew = language === "he";
 
   /* ════════════════════════════════════════════════════════════════════════
    *  RENDER
@@ -133,6 +144,21 @@ const TranslationView: React.FC = () => {
             ))}
           </div>
 
+          {/* Language toggle */}
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            disabled={isFetchingNews}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl border
+                       border-gray-300 px-4 py-2 text-sm font-medium text-gray-700
+                       hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400
+                       disabled:opacity-50 transition-colors"
+            aria-label="Switch source language"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+            {isHebrew ? "Hebrew → English" : "English → Hebrew"}
+          </button>
+
           {/* Fetch button */}
           <button
             type="button"
@@ -162,6 +188,34 @@ const TranslationView: React.FC = () => {
             <p className="text-sm text-red-600 text-center" role="alert">
               {fetchError}
             </p>
+          )}
+
+          {/* Resume saved progress */}
+          {hasSavedProgress && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+              <p className="text-sm text-amber-800 font-medium">
+                You have an unfinished session. Pick up where you left off?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={resumeProgress}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-1.5
+                             text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  Resume
+                </button>
+                <button
+                  type="button"
+                  onClick={discardSavedProgress}
+                  className="rounded-lg px-4 py-1.5 text-sm font-medium text-amber-700
+                             hover:bg-amber-100 transition-colors"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -225,6 +279,16 @@ const TranslationView: React.FC = () => {
           </div>
           <button
             type="button"
+            onClick={pauseAndSave}
+            className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700
+                       underline transition-colors"
+            aria-label="Pause and save progress"
+          >
+            <Pause className="h-3 w-3" />
+            Pause &amp; Save
+          </button>
+          <button
+            type="button"
             onClick={reset}
             className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors"
             aria-label="Start over with a new topic"
@@ -242,9 +306,12 @@ const TranslationView: React.FC = () => {
             title={article.title}
             source={article.source}
             url={article.url}
+            publishedAt={article.published_at}
+            fullArticleText={article.full_article_text}
             sentences={sentences}
             activeSentenceId={activeSentence?.id ?? 1}
             completedIds={completedIds}
+            isRtl={isHebrew}
           />
         </div>
 
@@ -255,6 +322,7 @@ const TranslationView: React.FC = () => {
               sourceSentence={activeSentence.original_text}
               isLoading={isEvaluating}
               onSubmit={submitTranslation}
+              isSourceRtl={isHebrew}
             />
           )}
 

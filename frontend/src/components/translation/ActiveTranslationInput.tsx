@@ -8,12 +8,15 @@ interface Props {
   isLoading: boolean;
   /** Called when the user submits their translation */
   onSubmit: (translation: string) => void;
+  /** Whether the source sentence is RTL (Hebrew) */
+  isSourceRtl?: boolean;
 }
 
 const ActiveTranslationInput: React.FC<Props> = ({
   sourceSentence,
   isLoading,
   onSubmit,
+  isSourceRtl = false,
 }) => {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -45,9 +48,12 @@ const ActiveTranslationInput: React.FC<Props> = ({
         htmlFor="translation-input"
         className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1"
       >
-        Translate this sentence
+        Translate this sentence into {isSourceRtl ? "English" : "Hebrew"}
       </label>
-      <p className="text-sm font-medium text-gray-800 mb-3 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">
+      <p
+        dir={isSourceRtl ? "rtl" : "ltr"}
+        className="text-sm font-medium text-gray-800 mb-3 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100 select-text"
+      >
         {sourceSentence}
       </p>
 
