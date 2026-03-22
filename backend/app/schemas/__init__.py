@@ -11,4 +11,11 @@ from .news import (
     NewsResponse,
 )
 from .translation import TranslationEvaluation
-from .presentation import ExtractedSlide, DocumentExtractionResult
+from .presentation import (
+    ExtractedSlide,
+    DocumentExtractionResult,
+    IngestResponse,
+    SimilaritySearchRequest,
+    SearchHit,
+    SimilaritySearchResponse,
+)
