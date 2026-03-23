@@ -1,148 +1,206 @@
-import { useEffect, useState } from 'react';
-import type { UserProfile } from '../types';
-import { User, BookOpen, TrendingUp, Star } from 'lucide-react';
-import IntegrationTest from '../components/IntegrationTest';
+import {
+  Activity,
+  BookOpen,
+  Star,
+  CalendarDays,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 
-// ── tiny reusable card ────────────────────────────────────────────────────────
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  color,
+import { useDashboard } from "../hooks/useDashboard";
+import StatCard from "../components/dashboard/StatCard";
+import MistakeChart from "../components/dashboard/MistakeChart";
+import VocabularyTable from "../components/dashboard/VocabularyTable";
+import ActionableInsights from "../components/dashboard/ActionableInsights";
+
+// ── Skeleton loader ──────────────────────────────────────────────────────────
+function DashboardSkeleton() {
+  return (
+    <div className="animate-pulse space-y-8">
+      {/* Stat cards skeleton */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100"
+          >
+            <div className="h-12 w-12 rounded-xl bg-gray-200" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-16 rounded bg-gray-200" />
+              <div className="h-5 w-20 rounded bg-gray-200" />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Chart + Insights skeleton */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="h-80 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100" />
+        <div className="h-80 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100" />
+      </div>
+      {/* Vocabulary skeleton */}
+      <div className="h-64 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100" />
+    </div>
+  );
+}
+
+// ── Error fallback ───────────────────────────────────────────────────────────
+function DashboardError({
+  message,
+  onRetry,
 }: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  color: string;
+  message: string;
+  onRetry: () => void;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-      <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${color}`}>
-        <Icon className="h-5 w-5 text-white" />
-      </span>
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</p>
-        <p className="text-lg font-semibold text-gray-800">{value}</p>
-      </div>
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-red-200 bg-red-50 py-16 text-center">
+      <AlertCircle className="mb-3 h-12 w-12 text-red-400" />
+      <p className="text-lg font-semibold text-red-700">
+        Unable to load progress
+      </p>
+      <p className="mt-1 text-sm text-red-500">{message}</p>
+      <button
+        onClick={onRetry}
+        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+      >
+        <RefreshCw className="h-4 w-4" />
+        Try again
+      </button>
     </div>
   );
 }
 
-// ── skeleton loader ───────────────────────────────────────────────────────────
-function ProfileSkeleton() {
+// ── Empty state ──────────────────────────────────────────────────────────────
+function EmptyDashboard() {
   return (
-    <div className="animate-pulse rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-      <div className="mb-4 h-4 w-1/3 rounded bg-gray-200" />
-      <div className="h-8 w-1/2 rounded bg-gray-200" />
-      <div className="mt-3 h-4 w-2/3 rounded bg-gray-100" />
+    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
+      <BookOpen className="mb-4 h-14 w-14 text-indigo-300" />
+      <h2 className="text-xl font-bold text-gray-700">
+        Welcome to your learning dashboard!
+      </h2>
+      <p className="mt-2 max-w-md text-sm text-gray-500">
+        Complete your first conversation, translation, or presentation session
+        to see insights, vocabulary tracking, and mistake pattern analysis here.
+      </p>
     </div>
   );
 }
 
-// ── main component ────────────────────────────────────────────────────────────
+// ── Main component ───────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { stats, loading, error, refetch } = useDashboard();
 
-  useEffect(() => {
-    const controller = new AbortController();
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Your Learning Journey
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">Loading your progress…</p>
+        </div>
+        <DashboardSkeleton />
+      </div>
+    );
+  }
 
-    // Fetch the first available user via the list endpoint,
-    // using a relative URL so the Vite dev proxy handles it.
-    fetch('/api/v1/users/?limit=1', { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<UserProfile[]>;
-      })
-      .then((users) => {
-        if (users.length === 0) {
-          throw new Error('No user profile found. Please seed the database.');
-        }
-        setProfile(users[0]);
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
-          setError(err.message ?? 'Could not load profile.');
-        }
-      })
-      .finally(() => setLoading(false));
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Your Learning Journey
+          </h1>
+        </div>
+        <DashboardError message={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
-    return () => controller.abort();
-  }, []);
+  if (!stats || stats.total_sessions === 0) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Your Learning Journey
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Let's get started with your first session!
+          </p>
+        </div>
+        <EmptyDashboard />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Your Learning Journey
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Welcome back! Here's a snapshot of your learning journey.
+          Here's a snapshot of your progress and areas for improvement.
         </p>
       </div>
 
-      {/* Profile card */}
-      {loading ? (
-        <ProfileSkeleton />
-      ) : error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-600">
-          ⚠️ Could not load profile — <span className="font-mono">{error}</span>
-        </div>
-      ) : profile ? (
+      {/* ── Stat cards ──────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<CalendarDays className="h-5 w-5" />}
+          label="Sessions"
+          value={String(stats.total_sessions)}
+          accentColor="bg-indigo-500"
+        />
+        <StatCard
+          icon={<Activity className="h-5 w-5" />}
+          label="Practice Time"
+          value={`${stats.total_minutes} mins`}
+          accentColor="bg-teal-500"
+        />
+        <StatCard
+          icon={<BookOpen className="h-5 w-5" />}
+          label="Words Learned"
+          value={String(stats.vocabulary.length)}
+          accentColor="bg-blue-500"
+        />
+        <StatCard
+          icon={<Star className="h-5 w-5" />}
+          label="Words Mastered"
+          value={String(stats.words_mastered)}
+          accentColor="bg-amber-400"
+        />
+      </div>
+
+      {/* ── Mistake Chart + Insights ────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Radar chart */}
         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100">
-              <User className="h-7 w-7 text-indigo-600" />
-            </span>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Learner Profile
-              </p>
-              <p className="text-xl font-bold capitalize text-gray-900">
-                {profile.proficiency_level}
-              </p>
-              <p className="text-sm text-gray-500">
-                Native language:{' '}
-                <span className="font-medium text-gray-700">{profile.native_language}</span>
-              </p>
-            </div>
-          </div>
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-800">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            Mistake Patterns
+          </h2>
+          <MistakeChart patterns={stats.mistake_patterns} />
         </div>
-      ) : null}
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard icon={BookOpen}   label="Sessions"        value="24"    color="bg-indigo-500" />
-        <StatCard icon={TrendingUp} label="Words Learned"   value="1,340" color="bg-emerald-500" />
-        <StatCard icon={Star}       label="Streak"          value="7 days" color="bg-amber-400" />
+        {/* Actionable insights */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-800">
+            <Star className="h-5 w-5 text-indigo-500" />
+            Personalised Tips
+          </h2>
+          <ActionableInsights insights={stats.insights} />
+        </div>
       </div>
 
-      {/* Quick-start cards */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Jump back in
+      {/* ── Vocabulary Bank ─────────────────────────────────────────────── */}
+      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-800">
+          <BookOpen className="h-5 w-5 text-indigo-500" />
+          Vocabulary Bank
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {[
-            { title: 'Practice Conversation', desc: 'Chat with the AI tutor in free-form English.', color: 'bg-indigo-500' },
-            { title: 'Translate a Phrase',    desc: 'Instantly translate and break down any sentence.', color: 'bg-emerald-500' },
-          ].map(({ title, desc, color }) => (
-            <div
-              key={title}
-              className="group cursor-pointer rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 transition hover:shadow-md"
-            >
-              <div className={`mb-3 inline-flex h-2 w-8 rounded-full ${color}`} />
-              <p className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">
-                {title}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">{desc}</p>
-            </div>
-          ))}
-        </div>
+        <VocabularyTable items={stats.vocabulary} />
       </div>
-
-      {/* Backend integration test */}
-      <IntegrationTest />
     </div>
   );
 }

@@ -25,6 +25,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
         transcription = await speech_client.audio.transcriptions.create(
             model=settings.AZURE_OPENAI_STT_DEPLOYMENT_NAME,
             file=(file.filename or "audio.webm", audio_bytes),
+            chunking_strategy="auto",
         )
 
         return {"text": transcription.text}

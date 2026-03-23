@@ -7,6 +7,7 @@ from app.api.chat import router as chat_router
 from app.api.news import router as news_router
 from app.api.translation import router as translation_router
 from app.api.presentations import router as presentations_router
+from app.api.dashboard import router as dashboard_router
 from app.api import speech
 from app.database import get_db
 from app.models.user import User
@@ -40,6 +41,7 @@ app.include_router(speech.router, prefix="/api/speech", tags=["Speech"])
 app.include_router(news_router, prefix="/api/v1")
 app.include_router(translation_router, prefix="/api/v1")
 app.include_router(presentations_router, prefix="/api/v1/presentations", tags=["Presentations"])
+app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 
 
 # ── Root & Health ─────────────────────────────────────────────────────────────

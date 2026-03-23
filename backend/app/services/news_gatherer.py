@@ -41,28 +41,22 @@ logger = logging.getLogger(__name__)
 _NEWSAPI_EVERYTHING_URL = "https://newsapi.org/v2/everything"
 _REQUEST_TIMEOUT = 10.0  # seconds
 
-# Tech-focused source domains for the /v2/everything endpoint.
-# Using `domains` lets us combine with a free-text `q` param.
-_TECH_DOMAINS = (
-    "techcrunch.com,theverge.com,arstechnica.com,wired.com,"
-    "engadget.com,thenextweb.com,macrumors.com,zdnet.com"
-)
-
-# Difficulty → domain / sort strategy
-#   EASY   : popular sources, simpler language (Engadget, The Verge)
-#   MEDIUM : all tech sources, sorted by recency
-#   HARD   : long-form sources (Ars Technica, Wired), sorted by relevancy
+# Difficulty → sort strategy
+#   EASY   : popular / recent articles with simpler language
+#   MEDIUM : recent articles from any source
+#   HARD   : relevancy-sorted articles (longer, more complex language)
+#
+# NOTE: We intentionally do NOT restrict by domain so that topic-based
+#       searches (e.g. "sports", "health") return relevant results
+#       rather than being limited to tech-only sites.
 _DIFFICULTY_CONFIG: dict[DifficultyLevel, dict] = {
     DifficultyLevel.EASY: {
-        "domains": "theverge.com,engadget.com,macrumors.com",
         "sortBy": "publishedAt",
     },
     DifficultyLevel.MEDIUM: {
-        "domains": _TECH_DOMAINS,
         "sortBy": "publishedAt",
     },
     DifficultyLevel.HARD: {
-        "domains": "arstechnica.com,wired.com,zdnet.com,thenextweb.com",
         "sortBy": "relevancy",
     },
 }
@@ -157,7 +151,6 @@ async def _fetch_from_newsapi(
         "sortBy": config["sortBy"],
         "pageSize": max_results,
         "apiKey": api_key,
-        "domains": config["domains"],
     }
 
     async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT, verify=False) as client:
