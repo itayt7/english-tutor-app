@@ -3,7 +3,7 @@ import Sidebar from '../components/Sidebar';
 
 export default function AppLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 font-sans">
+    <div className="flex h-screen overflow-hidden gradient-mesh font-sans">
       <Sidebar />
 
       {/* Main content area */}

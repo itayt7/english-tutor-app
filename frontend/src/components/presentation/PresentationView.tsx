@@ -36,14 +36,23 @@ const PresentationView: React.FC = () => {
     <div className="flex flex-col gap-6">
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
+        <span
+          className="flex h-10 w-10 items-center justify-center rounded-xl shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.15))',
+            boxShadow: '0 4px 12px rgba(245,158,11,0.15)',
+          }}
+        >
           <Presentation className="h-5 w-5 text-amber-500" />
         </span>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1
+            className="text-2xl font-extrabold"
+            style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
+          >
             Presentation Practice
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
             Upload your deck, pitch each slide, and get AI coaching
           </p>
         </div>
@@ -52,7 +61,10 @@ const PresentationView: React.FC = () => {
       {/* ── Main split layout ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[520px]">
         {/* ── Left pane: Upload / Slide Viewer ───────────────────────────── */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+        <div
+          className="glass rounded-2xl overflow-hidden flex flex-col"
+          style={{ background: 'rgba(255,255,255,0.78)' }}
+        >
           {hasFile ? (
             <SlideViewer
               filename={filename}
@@ -73,7 +85,10 @@ const PresentationView: React.FC = () => {
         </div>
 
         {/* ── Right pane: Feedback Panel ──────────────────────────────────── */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+        <div
+          className="glass rounded-2xl overflow-hidden flex flex-col"
+          style={{ background: 'rgba(255,255,255,0.78)' }}
+        >
           <FeedbackPanel
             evaluation={evaluation}
             transcript={transcript}

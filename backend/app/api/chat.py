@@ -17,11 +17,15 @@ async def send_message(request: ChatRequest):
     evaluates the message for grammar/vocabulary errors.
     """
     try:
-        # 1. Format history for the Tutor Agent
+        # 1. Format history for the Tutor Agent and append the current user turn.
+        # The frontend sends prior turns in message_history; the current message
+        # must be appended here so the tutor always sees the full conversation.
         history_dicts = [
             {"role": msg.role, "content": msg.content}
             for msg in request.message_history
         ]
+        if not history_dicts or history_dicts[-1].get("content") != request.user_message:
+            history_dicts.append({"role": "user", "content": request.user_message})
 
         # 2. Fire off both AI tasks concurrently
         tutor_task = generate_tutor_response(

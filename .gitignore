@@ -8,3 +8,4 @@ dist/
 
 # VS Code — commit tasks/settings but not personal keybindings
 .vscode/keybindings.json
+CLAUDE.local.md
