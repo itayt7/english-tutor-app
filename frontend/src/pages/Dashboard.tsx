@@ -5,6 +5,7 @@ import {
   CalendarDays,
   AlertCircle,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 
 import { useDashboard } from "../hooks/useDashboard";
@@ -22,7 +23,7 @@ function DashboardSkeleton() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100"
+            className="glass flex items-center gap-4 rounded-2xl p-5"
           >
             <div className="h-12 w-12 rounded-xl bg-gray-200" />
             <div className="flex-1 space-y-2">
@@ -34,11 +35,11 @@ function DashboardSkeleton() {
       </div>
       {/* Chart + Insights skeleton */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="h-80 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100" />
-        <div className="h-80 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100" />
+        <div className="glass h-80 rounded-2xl" />
+        <div className="glass h-80 rounded-2xl" />
       </div>
       {/* Vocabulary skeleton */}
-      <div className="h-64 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100" />
+      <div className="glass h-64 rounded-2xl" />
     </div>
   );
 }
@@ -52,7 +53,10 @@ function DashboardError({
   onRetry: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-red-200 bg-red-50 py-16 text-center">
+    <div
+      className="glass flex flex-col items-center justify-center rounded-2xl py-16 text-center"
+      style={{ borderColor: 'rgba(239,68,68,0.25)', background: 'rgba(254,242,242,0.7)' }}
+    >
       <AlertCircle className="mb-3 h-12 w-12 text-red-400" />
       <p className="text-lg font-semibold text-red-700">
         Unable to load progress
@@ -60,7 +64,8 @@ function DashboardError({
       <p className="mt-1 text-sm text-red-500">{message}</p>
       <button
         onClick={onRetry}
-        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+        className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}
       >
         <RefreshCw className="h-4 w-4" />
         Try again
@@ -72,15 +77,125 @@ function DashboardError({
 // ── Empty state ──────────────────────────────────────────────────────────────
 function EmptyDashboard() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
-      <BookOpen className="mb-4 h-14 w-14 text-indigo-300" />
-      <h2 className="text-xl font-bold text-gray-700">
+    <div
+      className="glass flex flex-col items-center justify-center rounded-2xl py-20 text-center"
+      style={{ borderStyle: 'dashed', borderColor: 'rgba(99,102,241,0.25)' }}
+    >
+      <span
+        className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
+        style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(124,58,237,0.12))',
+          boxShadow: '0 4px 16px rgba(99,102,241,0.12)',
+        }}
+      >
+        <BookOpen className="h-8 w-8" style={{ color: 'var(--color-primary)' }} />
+      </span>
+      <h2
+        className="text-xl font-bold"
+        style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
+      >
         Welcome to your learning dashboard!
       </h2>
-      <p className="mt-2 max-w-md text-sm text-gray-500">
+      <p className="mt-2 max-w-md text-sm" style={{ color: 'var(--color-muted)' }}>
         Complete your first conversation, translation, or presentation session
         to see insights, vocabulary tracking, and mistake pattern analysis here.
       </p>
+    </div>
+  );
+}
+
+// ── Hero banner ──────────────────────────────────────────────────────────────
+function HeroBanner({ totalSessions }: { totalSessions: number }) {
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl px-8 py-7"
+      style={{
+        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%)',
+        boxShadow: 'var(--shadow-xl)',
+      }}
+    >
+      {/* Subtle gradient orbs for depth */}
+      <div
+        className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full opacity-30"
+        style={{
+          background: 'radial-gradient(circle, rgba(124,58,237,0.6) 0%, transparent 70%)',
+        }}
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-0 left-20 h-32 w-32 rounded-full opacity-20"
+        style={{
+          background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)',
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium" style={{ color: 'rgba(165,180,252,0.8)' }}>
+            {greeting} ✦ Keep learning
+          </p>
+          <h1
+            className="mt-1 text-3xl font-extrabold text-white"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Your Learning Journey
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: 'rgba(199,210,254,0.7)' }}>
+            Every session brings you closer to fluency. Keep the momentum going.
+          </p>
+        </div>
+
+        {/* Streak indicator */}
+        <div
+          className="shrink-0 flex flex-col items-center justify-center rounded-xl px-5 py-3"
+          style={{
+            background: 'rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.15)',
+          }}
+        >
+          <Sparkles className="h-5 w-5 text-amber-300 mb-1" />
+          <span
+            className="text-2xl font-extrabold text-white"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {totalSessions}
+          </span>
+          <span className="text-xs font-medium" style={{ color: 'rgba(165,180,252,0.7)' }}>
+            sessions
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Section card wrapper ─────────────────────────────────────────────────────
+function SectionCard({
+  children,
+  title,
+  icon,
+}: {
+  children: React.ReactNode;
+  title: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="glass rounded-2xl p-6">
+      <h2
+        className="mb-4 flex items-center gap-2 text-base font-semibold"
+        style={{ color: 'var(--color-text)' }}
+      >
+        {icon}
+        {title}
+      </h2>
+      {children}
     </div>
   );
 }
@@ -92,12 +207,13 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Your Learning Journey
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">Loading your progress…</p>
-        </div>
+        <div
+          className="h-32 rounded-2xl animate-pulse"
+          style={{
+            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%)',
+            opacity: 0.7,
+          }}
+        />
         <DashboardSkeleton />
       </div>
     );
@@ -106,11 +222,7 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Your Learning Journey
-          </h1>
-        </div>
+        <HeroBanner totalSessions={0} />
         <DashboardError message={error} onRetry={refetch} />
       </div>
     );
@@ -119,14 +231,7 @@ export default function Dashboard() {
   if (!stats || stats.total_sessions === 0) {
     return (
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Your Learning Journey
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Let's get started with your first session!
-          </p>
-        </div>
+        <HeroBanner totalSessions={0} />
         <EmptyDashboard />
       </div>
     );
@@ -134,15 +239,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Your Learning Journey
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Here's a snapshot of your progress and areas for improvement.
-        </p>
-      </div>
+      {/* Hero banner */}
+      <HeroBanner totalSessions={stats.total_sessions} />
 
       {/* ── Stat cards ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -174,33 +272,28 @@ export default function Dashboard() {
 
       {/* ── Mistake Chart + Insights ────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Radar chart */}
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-800">
-            <AlertCircle className="h-5 w-5 text-amber-500" />
-            Mistake Patterns
-          </h2>
+        <SectionCard
+          title="Mistake Patterns"
+          icon={<AlertCircle className="h-5 w-5 text-amber-500" />}
+        >
           <MistakeChart patterns={stats.mistake_patterns} />
-        </div>
+        </SectionCard>
 
-        {/* Actionable insights */}
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-800">
-            <Star className="h-5 w-5 text-indigo-500" />
-            Personalised Tips
-          </h2>
+        <SectionCard
+          title="Personalised Tips"
+          icon={<Star className="h-5 w-5" style={{ color: 'var(--color-primary)' }} />}
+        >
           <ActionableInsights insights={stats.insights} />
-        </div>
+        </SectionCard>
       </div>
 
       {/* ── Vocabulary Bank ─────────────────────────────────────────────── */}
-      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-800">
-          <BookOpen className="h-5 w-5 text-indigo-500" />
-          Vocabulary Bank
-        </h2>
+      <SectionCard
+        title="Vocabulary Bank"
+        icon={<BookOpen className="h-5 w-5" style={{ color: 'var(--color-primary)' }} />}
+      >
         <VocabularyTable items={stats.vocabulary} />
-      </div>
+      </SectionCard>
     </div>
   );
 }
