@@ -51,13 +51,15 @@ class TestChatSchemas:
             ChatRequest()  # type: ignore[call-arg]
 
     def test_chat_response_structure(self):
-        """ChatResponse should accept a tutor string + EvaluationResult."""
+        """ChatResponse should accept a tutor string + EvaluationResult + session_id."""
         resp = ChatResponse(
             tutor_response="That's great!",
             evaluation=EvaluationResult(has_errors=False, corrections=[]),
+            session_id=42,
         )
         assert resp.tutor_response == "That's great!"
         assert resp.evaluation.has_errors is False
+        assert resp.session_id == 42
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +123,7 @@ class TestChatEndpoint:
             assert body["tutor_response"] == tutor_text
             assert body["evaluation"]["has_errors"] is False
             assert body["evaluation"]["corrections"] == []
+            assert isinstance(body["session_id"], int)
 
     @pytest.mark.asyncio
     async def test_empty_history(self):
@@ -151,6 +154,7 @@ class TestChatEndpoint:
             assert resp.status_code == 200
             body = resp.json()
             assert body["tutor_response"] == tutor_text
+            assert isinstance(body["session_id"], int)
 
     @pytest.mark.asyncio
     async def test_with_errors_detected(self):
@@ -288,3 +292,141 @@ class TestChatEndpoint:
             # Both LLM clients should have been called exactly once
             mock_tutor_client.chat.completions.create.assert_awaited_once()
             mock_eval_client.chat.completions.create.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_session_id_continues_across_messages(self):
+        """Sending a second message with session_id should reuse the same session."""
+        tutor_text = "Great!"
+        eval_json = json.dumps({"has_errors": False, "corrections": []})
+
+        with (
+            patch("app.ai.agents.tutor.ai_client") as mock_tutor_client,
+            patch("app.ai.agents.evaluator.ai_client") as mock_eval_client,
+        ):
+            mock_tutor_client.chat.completions.create = AsyncMock(
+                return_value=_mock_chat_response(tutor_text)
+            )
+            mock_eval_client.chat.completions.create = AsyncMock(
+                return_value=_mock_chat_response(eval_json)
+            )
+
+            from main import app
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                # First message — creates a session
+                r1 = await ac.post("/api/chat/message", json={"user_message": "Hello"})
+                assert r1.status_code == 200
+                session_id = r1.json()["session_id"]
+
+                # Second message — continues the same session
+                r2 = await ac.post(
+                    "/api/chat/message",
+                    json={"user_message": "How are you?", "session_id": session_id},
+                )
+                assert r2.status_code == 200
+                assert r2.json()["session_id"] == session_id
+
+
+# ---------------------------------------------------------------------------
+# Chat history endpoint tests
+# ---------------------------------------------------------------------------
+
+
+class TestChatHistoryEndpoints:
+    """Tests for GET /api/chat/sessions and /api/chat/sessions/{id}/messages."""
+
+    @pytest.mark.asyncio
+    async def test_list_sessions_returns_list(self):
+        """GET /api/chat/sessions should return a list (possibly empty)."""
+        from main import app
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/chat/sessions?user_id=1")
+
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    @pytest.mark.asyncio
+    async def test_list_sessions_contains_created_session(self):
+        """A session created via POST /message should appear in GET /sessions."""
+        tutor_text = "Hello!"
+        eval_json = json.dumps({"has_errors": False, "corrections": []})
+
+        with (
+            patch("app.ai.agents.tutor.ai_client") as mock_tutor_client,
+            patch("app.ai.agents.evaluator.ai_client") as mock_eval_client,
+        ):
+            mock_tutor_client.chat.completions.create = AsyncMock(
+                return_value=_mock_chat_response(tutor_text)
+            )
+            mock_eval_client.chat.completions.create = AsyncMock(
+                return_value=_mock_chat_response(eval_json)
+            )
+
+            from main import app
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                post_resp = await ac.post(
+                    "/api/chat/message",
+                    json={"user_message": "Tell me about history"},
+                )
+                session_id = post_resp.json()["session_id"]
+
+                get_resp = await ac.get("/api/chat/sessions?user_id=1")
+
+        assert get_resp.status_code == 200
+        session_ids = [s["id"] for s in get_resp.json()]
+        assert session_id in session_ids
+
+    @pytest.mark.asyncio
+    async def test_get_messages_returns_two_rows_per_exchange(self):
+        """Each message exchange should persist one user row and one assistant row."""
+        tutor_text = "Nice to meet you!"
+        eval_json = json.dumps({"has_errors": False, "corrections": []})
+
+        with (
+            patch("app.ai.agents.tutor.ai_client") as mock_tutor_client,
+            patch("app.ai.agents.evaluator.ai_client") as mock_eval_client,
+        ):
+            mock_tutor_client.chat.completions.create = AsyncMock(
+                return_value=_mock_chat_response(tutor_text)
+            )
+            mock_eval_client.chat.completions.create = AsyncMock(
+                return_value=_mock_chat_response(eval_json)
+            )
+
+            from main import app
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                post_resp = await ac.post(
+                    "/api/chat/message",
+                    json={"user_message": "My name is Itay"},
+                )
+                session_id = post_resp.json()["session_id"]
+
+                msgs_resp = await ac.get(
+                    f"/api/chat/sessions/{session_id}/messages?user_id=1"
+                )
+
+        assert msgs_resp.status_code == 200
+        messages = msgs_resp.json()
+        assert len(messages) == 2
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "My name is Itay"
+        assert messages[1]["role"] == "assistant"
+        assert messages[1]["content"] == tutor_text
+
+    @pytest.mark.asyncio
+    async def test_get_messages_unknown_session_returns_404(self):
+        """Requesting messages for a non-existent session should return 404."""
+        from main import app
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/chat/sessions/999999/messages?user_id=1")
+
+        assert resp.status_code == 404

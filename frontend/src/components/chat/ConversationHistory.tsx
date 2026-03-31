@@ -34,7 +34,7 @@ export const ConversationHistory: React.FC<Props> = ({
       .then(setSessions)
       .catch(() => setSessions([]))
       .finally(() => setLoading(false));
-  }, [activeSessionId]); // re-fetch when session changes so new ones appear
+  }, []); // parent re-mounts via historyKey when a new session is created
 
   return (
     <div
