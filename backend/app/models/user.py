@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.session import Session
     from app.models.vocabulary import VocabularyItem
     from app.models.mistake import MistakePattern
+    from app.models.chat_message import ChatMessage
 
 
 class User(Base):
@@ -28,4 +29,7 @@ class User(Base):
     )
     mistake_patterns: Mapped[list["MistakePattern"]] = relationship(  # noqa: F821
         "MistakePattern", back_populates="user", cascade="all, delete-orphan"
+    )
+    chat_messages: Mapped[list["ChatMessage"]] = relationship(  # noqa: F821
+        "ChatMessage", back_populates="user", cascade="all, delete-orphan"
     )

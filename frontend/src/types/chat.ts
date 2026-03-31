@@ -20,5 +20,20 @@ export interface EvaluationResult {
 
 export interface UIMessage extends ChatMessage {
   id: string;
-  evaluation?: EvaluationResult; 
+  evaluation?: EvaluationResult;
+}
+
+export interface ChatSessionSummary {
+  id: number;
+  topic: string;
+  created_at: string;
+  message_count: number;
+}
+
+export interface StoredMessage {
+  id: number;
+  role: Role;
+  content: string;
+  evaluation_json: string | null;
+  created_at: string;
 }

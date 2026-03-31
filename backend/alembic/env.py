@@ -2,9 +2,7 @@ import sys
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
+from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # ---------------------------------------------------------------------------
@@ -18,10 +16,11 @@ from app.database import Base  # noqa: E402
 
 # Import every model module here so their tables are registered on Base.metadata
 # before autogenerate runs.
-import app.models.user         # noqa: E402, F401
-import app.models.session      # noqa: E402, F401
-import app.models.vocabulary   # noqa: E402, F401
-import app.models.mistake      # noqa: E402, F401
+import app.models.user          # noqa: E402, F401
+import app.models.session       # noqa: E402, F401
+import app.models.vocabulary    # noqa: E402, F401
+import app.models.mistake       # noqa: E402, F401
+import app.models.chat_message  # noqa: E402, F401
 
 # ---------------------------------------------------------------------------
 # Alembic Config object
@@ -30,6 +29,11 @@ config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override sqlalchemy.url with value from application settings so there is
+# a single source of truth (backend/.env → Settings.DATABASE_URL).
+from app.core.config import settings  # noqa: E402
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # Hand Alembic the metadata it will diff against the live database
 target_metadata = Base.metadata
@@ -43,8 +47,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        # Render ALTER TABLE statements for column changes in SQLite-friendly way
-        render_as_batch=True,
+        # render_as_batch is only needed for SQLite; PostgreSQL supports ALTER natively
+        render_as_batch=url.startswith("sqlite"),
     )
 
     with context.begin_transaction():
@@ -63,8 +67,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            # Required for SQLite: ALTER TABLE is emulated via batch operations
-            render_as_batch=True,
+            render_as_batch=settings.DATABASE_URL.startswith("sqlite"),
         )
 
         with context.begin_transaction():
@@ -75,4 +78,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

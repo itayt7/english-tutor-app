@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Azure OpenAI – Embeddings (RAG pipeline)
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME: str = "text-embedding-3-small"
 
+    # Database – set to Supabase PostgreSQL URI in production
+    # e.g. postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres
+    DATABASE_URL: str = "sqlite:///./english_tutor.db"
+
     # ChromaDB – local persistent storage path
     CHROMA_DB_PATH: str = "./data/chroma_db"
 
