@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -9,16 +11,32 @@ from app.api.translation import router as translation_router
 from app.api.presentations import router as presentations_router
 from app.api.dashboard import router as dashboard_router
 from app.api import speech
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models.user import User
 
 # NOTE: Schema is managed by Alembic migrations.
 # Run `alembic upgrade head` before starting the server.
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Seed the default user (id=1) so the app works out-of-the-box on a fresh
+    # database (e.g. after migrating to a new Supabase instance).
+    db = SessionLocal()
+    try:
+        if not db.get(User, 1):
+            db.add(User(native_language="Hebrew", proficiency_level="B2"))
+            db.commit()
+    finally:
+        db.close()
+    yield
+
+
 app = FastAPI(
     title="AI English Tutor API",
     description="Backend for the AI-powered English tutoring application.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
