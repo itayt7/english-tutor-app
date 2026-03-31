@@ -1,11 +1,26 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { UIMessage, ChatMessage } from '../../types/chat';
-import { sendMessageToAPI } from '../../services/chatService';
+import type { UIMessage, ChatMessage, EvaluationResult } from '../../types/chat';
+import { sendMessageToAPI, getChatMessages } from '../../services/chatService';
 import { transcribeAudio, synthesizeSpeech } from '../../services/speechService';
 import { MessageBubble } from './MessageBubble';
 
-export const ChatInterface: React.FC = () => {
+interface Props {
+  initialSessionId?: number | null;
+  onSessionCreated?: (sessionId: number) => void;
+}
+
+function storedEvalToResult(json: string | null): EvaluationResult | undefined {
+  if (!json) return undefined;
+  try {
+    return JSON.parse(json) as EvaluationResult;
+  } catch {
+    return undefined;
+  }
+}
+
+export const ChatInterface: React.FC<Props> = ({ initialSessionId = null, onSessionCreated }) => {
   const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [sessionId, setSessionId] = useState<number | null>(initialSessionId);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -13,6 +28,30 @@ export const ChatInterface: React.FC = () => {
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  // Load messages when an existing session is selected
+  useEffect(() => {
+    setSessionId(initialSessionId ?? null);
+
+    if (!initialSessionId) {
+      setMessages([]);
+      return;
+    }
+
+    setIsLoading(true);
+    getChatMessages(initialSessionId)
+      .then((stored) => {
+        const loaded: UIMessage[] = stored.map((m) => ({
+          id: String(m.id),
+          role: m.role,
+          content: m.content,
+          evaluation: storedEvalToResult(m.evaluation_json),
+        }));
+        setMessages(loaded);
+      })
+      .catch(() => setMessages([]))
+      .finally(() => setIsLoading(false));
+  }, [initialSessionId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -32,28 +71,24 @@ export const ChatInterface: React.FC = () => {
       content: text,
     };
 
-    // Update UI immediately with the user's message
     setMessages((prev) => [...prev, newUserMsg]);
     setInputValue("");
     setIsLoading(true);
 
     try {
-      // Build history from the pre-update snapshot and append the new user message.
-      // Cannot read `messages` after setMessages — React batches state updates
-      // so the closure still holds the old array without newUserMsg.
       const apiHistory: ChatMessage[] = [
         ...messages.map(m => ({ role: m.role, content: m.content })),
         { role: "user" as const, content: newUserMsg.content },
       ];
 
-      const response = await sendMessageToAPI(newUserMsg.content, apiHistory);
+      const response = await sendMessageToAPI(newUserMsg.content, apiHistory, "B2", "Hebrew", sessionId);
 
-      // 1. Update the user's message with the shadow evaluation results
+      // Attach evaluation to the user's message
       setMessages((prev) =>
         prev.map(msg => msg.id === newUserMsg.id ? { ...msg, evaluation: response.evaluation } : msg)
       );
 
-      // 2. Add the tutor's reply to the chat
+      // Add tutor reply
       const tutorMsg: UIMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -61,12 +96,17 @@ export const ChatInterface: React.FC = () => {
       };
       setMessages((prev) => [...prev, tutorMsg]);
 
-      // 3. Auto-play the tutor's reply via TTS
+      // Track session_id from first response
+      if (sessionId === null) {
+        setSessionId(response.session_id);
+        onSessionCreated?.(response.session_id);
+      }
+
+      // Auto-play TTS
       try {
         const audioUrl = await synthesizeSpeech(response.tutor_response);
         const audio = new Audio(audioUrl);
         audio.play().catch(() => {/* browser may block autoplay – silent fail */});
-        // Revoke the object URL once playback ends to free memory
         audio.addEventListener("ended", () => URL.revokeObjectURL(audioUrl));
       } catch (ttsError) {
         console.warn("TTS playback failed, continuing silently.", ttsError);
@@ -78,7 +118,7 @@ export const ChatInterface: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [inputValue, messages]);
+  }, [inputValue, messages, sessionId, onSessionCreated]);
 
   // ---------------------------------------------------------------------------
   // Microphone recording helpers
@@ -97,7 +137,6 @@ export const ChatInterface: React.FC = () => {
       };
 
       mediaRecorder.onstop = async () => {
-        // Stop all tracks to release the microphone
         stream.getTracks().forEach(t => t.stop());
 
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
@@ -108,7 +147,6 @@ export const ChatInterface: React.FC = () => {
           const text = await transcribeAudio(audioBlob);
           if (text.trim()) {
             setInputValue(text);
-            // Automatically send the transcribed message
             await handleSend(text);
           }
         } catch (err) {
@@ -134,7 +172,6 @@ export const ChatInterface: React.FC = () => {
     setIsRecording(false);
   };
 
-  // Busy when waiting for the AI or transcribing
   const isBusy = isLoading || isTranscribing;
 
   return (
@@ -172,7 +209,7 @@ export const ChatInterface: React.FC = () => {
           backgroundSize: '24px 24px',
         }}
       >
-        {messages.length === 0 && (
+        {messages.length === 0 && !isBusy && (
           <div
             className="flex flex-col items-center justify-center h-full text-center gap-3 pb-8"
             style={{ color: 'var(--color-muted)' }}
@@ -208,7 +245,7 @@ export const ChatInterface: React.FC = () => {
             className="text-sm italic animate-pulse px-3"
             style={{ color: 'var(--color-muted)' }}
           >
-            The tutor is typing…
+            {messages.length === 0 ? "Loading conversation…" : "The tutor is typing…"}
           </div>
         )}
         {isTranscribing && (
@@ -259,7 +296,6 @@ export const ChatInterface: React.FC = () => {
             title="Hold to record"
             aria-label="Hold to record"
           >
-            {/* Microphone SVG icon */}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 10v2a7 7 0 01-14 0v-2" />

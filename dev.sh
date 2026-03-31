@@ -57,8 +57,16 @@ case "${1:-start}" in
   start|"")
     stop_servers
     start_backend
-    sleep 2
+
+    # Wait until the backend responds (up to 15 s) before starting the frontend
+    echo -e "${BLUE}⏳ Waiting for backend to be ready...${NC}"
+    for i in {1..15}; do
+      curl -s http://localhost:8000/docs > /dev/null 2>&1 && break
+      sleep 1
+    done
+
     start_frontend
+
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}  🚀 English Tutor App is running!${NC}"
@@ -68,7 +76,10 @@ case "${1:-start}" in
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo -e "Press ${RED}Ctrl+C${NC} to stop both servers."
-    # Wait for both background processes; on Ctrl+C clean up
+
+    # Give Vite a moment then open the browser automatically
+    sleep 2 && open http://localhost:5173 &
+
     trap 'stop_servers; exit 0' INT TERM
     wait
     ;;

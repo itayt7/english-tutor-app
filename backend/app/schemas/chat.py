@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 from app.schemas.evaluation import EvaluationResult
 
 
@@ -22,6 +23,11 @@ class ChatRequest(BaseModel):
     native_language: str = Field(
         default="Hebrew", description="The user's native language."
     )
+    user_id: int = Field(default=1, description="The learner's user ID.")
+    session_id: Optional[int] = Field(
+        default=None,
+        description="Existing session ID to continue. Omit to start a new conversation.",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -31,3 +37,23 @@ class ChatResponse(BaseModel):
     evaluation: EvaluationResult = Field(
         ..., description="The asynchronous grammar evaluation."
     )
+    session_id: int = Field(..., description="The session this message belongs to.")
+
+
+class StoredMessage(BaseModel):
+    id: int
+    role: str
+    content: str
+    evaluation_json: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChatSessionSummary(BaseModel):
+    id: int
+    topic: str
+    created_at: datetime
+    message_count: int
+
+    model_config = {"from_attributes": True}
